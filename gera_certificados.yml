@@ -1,0 +1,35 @@
+################################################################
+#                                                              #
+#         Playbook Ansible - Configuração de TLS               #
+#         Criado por: Anselmo Borges                           #
+#         Data de criação: 25.11.2019                          #
+#         Ultima atualização: 25.11.2019                       #
+#                                                              #
+################################################################                                    
+
+- name: "Playbook Configuração de TLS no Cloudera"
+  hosts: ndevs
+
+  tasks: 
+    - name: "1 - Envia script Python de geração de certificados para os nodes"
+      copy:
+        src: python/cria_certificados.py
+        dest: /tmp/cria_certificados.py
+        owner: root
+        group: root
+        mode: 0644   
+      become: yes
+      become_method: sudo
+      become_user: root
+
+    - name: "2 - Executa Python nos nodes para a criação dos diretorios e certificados"
+      command: '/opt/anaconda3/bin/python3 /tmp/cria_certificados.py >> /tmp/log_certificados.log'
+      become: yes
+      become_method: sudo
+      become_user: root
+
+    - name: "3 - Altera privilégios das pastas /tmp/teste para o cdh"
+      shell: chown cdh:cdh -R /tmp/teste
+      become: yes
+      become_method: sudo
+      become_user: root
