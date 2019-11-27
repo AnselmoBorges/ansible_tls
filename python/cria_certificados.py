@@ -23,8 +23,10 @@ p12 = 'keytool -importkeystore -srckeystore {chave_jks} -srcstorepass \'{senha}\
 pem = 'openssl pkcs12 -in {chave_p12} -passin pass:{senha} -out {local_pem} -passout pass:{senha}'.format(chave_p12=chave_p12,senha=senha,local_pem=local_pem)
 l_agent_jks = 'ln -sf {chave_jks} {path}/agent.jks'.format(chave_jks=chave_jks,path=path)
 l_agent_pem = 'ln -sf {local_pem} {path}/agent.pem'.format(local_pem=local_pem,path=path)
+l_server_jks = 'ln -sf {chave_jks} {path}/server.jks'.format(chave_jks=chave_jks,path=path)
 agent_jks = '{path}/agent.jks'.format(path=path)
 agent_pem = '{path}/agent.pem'.format(path=path)
+server_jks = '{path}/server_jks'.format(path=path)
 
 ### 1 - Criando diretórios
 if not os.path.exists(path):
@@ -103,9 +105,17 @@ if not os.path.exists(agent_pem):
 else:
   print('O certificado ' + l_agent_pem + ' já existe!')
 
-if os.path.exists(agent_pem) and os.path.exists(agent_jks):
-  print('Passo 6: Criação dos links simbólicos dos agents OK!')
+if not os.path.exists(server_jks):
+  try:
+    os.system(l_server_jks)
+  except:
+    raise OSError('Deu ruim!')
+else:
+  print('O certificado ' + l_server_jks + ' já existe!')
 
+
+if os.path.exists(agent_pem) and os.path.exists(agent_jks) and os.path.exists(server_jks):
+  print('Passo 6: Criação dos links simbólicos dos agents OK!')
 
 ### Finalizando:
 print(' ')

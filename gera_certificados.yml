@@ -9,12 +9,18 @@
 
 - name: "Playbook Configuração de TLS no Cloudera"
   hosts: ndevs
+  vars:
+    path_python: "/opt/anaconda3/bin/python3"
+    dest: "/tmp"
+    python: "cria_certificados.py"
+    dir: "/tmp/teste"
+    pwd_novo: "#spclab@"
 
   tasks: 
     - name: "1 - Envia script Python de geração de certificados para os nodes"
       copy:
-        src: python/cria_certificados.py
-        dest: /tmp/cria_certificados.py
+        src: python/{{ python }}
+        dest: /tmp/{{ python }}
         owner: root
         group: root
         mode: 0644   
@@ -23,13 +29,20 @@
       become_user: root
 
     - name: "2 - Executa Python nos nodes para a criação dos diretorios e certificados"
-      command: '/opt/anaconda3/bin/python3 /tmp/cria_certificados.py >> /tmp/log_certificados.log'
+      command: '{{ path_python }} {{ dest }}/{{ python }} >> {{ dest }}/log_certificados.log'
       become: yes
       become_method: sudo
       become_user: root
 
-    - name: "3 - Altera privilégios das pastas /tmp/teste para o cdh"
-      shell: chown cdh:cdh -R /tmp/teste
+    - name: "3 - Cria o arquivo de senha .passwd"
+      shell: echo {{ pwd_novo }} > {{ dir }}/.passwd
       become: yes
       become_method: sudo
       become_user: root
+
+    - name: "4 - Altera privilégios das pastas dos certificados para o cdh"
+      shell: chown cdh:cdh -R {{ dir }}
+      become: yes
+      become_method: sudo
+      become_user: root
+

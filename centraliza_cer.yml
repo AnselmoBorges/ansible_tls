@@ -9,18 +9,24 @@
 
 - name: "Playbook Configuração de TLS no Cloudera"
   hosts: sp-vmw-hdp-dev-01
+  vars:
+    path: "/tmp/teste"
+    path_todos: "{{ path }}/todos"
+    server_pem: "{{ path }}/server.pem"
+    jre_home: "/usr/java/default/jre"
+    cacerts: "{{ jre_home }}/lib/security/cacerts"
+    jssecacerts: "{{ path }}/jssecacerts"
+    pwd_padrao: "changeit"
+    pwd_novo: "#spclab@"
 
   tasks:
     - name: "1 - Cria o diretório todos no node principal"
       file:
-        path: /tmp/teste/todos
+        path: "{{ path_todos }}"
         state: directory
-      become: yes
-      become_method: sudo
-      become_user: root
 
     - name: "2 - Copia os arquivos .cer para o diretorio todos"
-      shell: scp cdh@{{ item }}:/tmp/teste/*.cer /tmp/teste/todos/
+      shell: scp cdh@{{ item }}:{{ path }}/*.cer {{ path_todos }}
       with_items:
         - sp-vmw-hdp-dev-01
         - sp-vmw-hdp-dev-02
@@ -31,8 +37,16 @@
         - sp-vmw-hdp-dev-07
         - sp-vmw-hdp-dev-08
 
-    - name: "3 - Gera o server.pem com o conteudo dos arquivos .cer"
-      shell: cat /tmp/teste/todos/{{ item }} >> /tmp/teste/server.pem
+    - name: "3 - Deleta o arquivo server.pem se ele existir"
+      file:
+        path: "{{ server_pem }}"
+        state: absent
+      become: yes
+      become_method: sudo
+      become_user: root
+
+    - name: "4 - Gera o server.pem com o conteudo dos arquivos .cer"
+      shell: cat {{ path_todos }}/{{ item }} >> {{ server_pem }}
       with_items:
         - sp-vmw-hdp-dev-01.spcdc.br.cer
         - sp-vmw-hdp-dev-02.spcdc.br.cer
@@ -43,8 +57,50 @@
         - sp-vmw-hdp-dev-07.spcdc.br.cer
         - sp-vmw-hdp-dev-08.spcdc.br.cer
 
-    - name: "4 - Distribui o server.pem para os hosts"
-      shell: scp /tmp/teste/server.pem cdh@{{ item }}:/tmp/teste/server.pem
+    - name: "5 - Distribui o server.pem para os hosts"
+      shell: scp {{ server_pem }} cdh@{{ item }}:{{ server_pem }}
+      with_items:
+        - sp-vmw-hdp-dev-01
+        - sp-vmw-hdp-dev-02
+        - sp-vmw-hdp-dev-03
+        - sp-vmw-hdp-dev-04
+        - sp-vmw-hdp-dev-05
+        - sp-vmw-hdp-dev-06
+        - sp-vmw-hdp-dev-07
+        - sp-vmw-hdp-dev-08
+
+    - name: "6 - Copia o cacerts para o diretorio PKI já renomeando para jssecacerts"
+      shell: cp {{ cacerts }} {{ jssecacerts }}
+
+    - name: "7 - Altera a senha do jssecacerts para a desejada"
+      shell: keytool -storepasswd -v --storepass "{{pwd_padrao}}" -new "{{pwd_novo}}" -keystore {{ jssecacerts }}
+
+    - name: "8 - Adicionar todos os .cer no jssecacerts"
+      shell: echo -n yes | keytool -import -alias {{ item }} -file {{ path_todos }}/{{ item }}.cer -keystore {{ jssecacerts }} --storepass "{{ pwd_novo }}"
+      with_items:
+        - sp-vmw-hdp-dev-01.spcdc.br
+        - sp-vmw-hdp-dev-02.spcdc.br
+        - sp-vmw-hdp-dev-03.spcdc.br
+        - sp-vmw-hdp-dev-04.spcdc.br
+        - sp-vmw-hdp-dev-05.spcdc.br
+        - sp-vmw-hdp-dev-06.spcdc.br
+        - sp-vmw-hdp-dev-07.spcdc.br
+        - sp-vmw-hdp-dev-08.spcdc.br
+
+    - name: "9 - Distribui o jssecacerts para os hosts"
+      shell: scp {{ jssecacerts }} cdh@{{ item }}:{{ jssecacerts }}
+      with_items:
+        - sp-vmw-hdp-dev-01
+        - sp-vmw-hdp-dev-02
+        - sp-vmw-hdp-dev-03
+        - sp-vmw-hdp-dev-04
+        - sp-vmw-hdp-dev-05
+        - sp-vmw-hdp-dev-06
+        - sp-vmw-hdp-dev-07
+        - sp-vmw-hdp-dev-08
+
+    - name: "10 - Mudar privilégios do diretórios dos certificados para cloudera-scm"
+      shell: ssh cdh@{{ item }} "sudo chown -R cloudera-scm:cloudera-scm {{ path }}"
       with_items:
         - sp-vmw-hdp-dev-01
         - sp-vmw-hdp-dev-02
